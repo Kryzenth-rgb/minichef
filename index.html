@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#287C78">
+<title>Mini Chef</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <main id="screen-title" class="screen">
+    <div class="logo">🍳</div>
+    <h1>Mini Chef</h1>
+    <p class="subtitle">Les Saveurs du Monde</p>
+    <p class="resto">Le Petit Gourmet</p>
+    <button id="btn-play" class="btn">Jouer</button>
+    <p class="credit">SmartLife Apps · Prototype 0.1</p>
+  </main>
+
+  <main id="screen-resto" class="screen hidden">
+    <div class="topbar">
+      <span>🪙 <b id="coins">0</b></span>
+      <span>Le Petit Gourmet</span>
+    </div>
+    <div class="dialog">
+      <div class="avatar">👨‍🍳</div>
+      <p><b>Auguste :</b> Bienvenue, petit chef ! Ce restaurant est à toi. Je vais t'apprendre les secrets de la cuisine.</p>
+    </div>
+    <button id="btn-test" class="btn">Test : gagner 10 pièces</button>
+    <button id="btn-back" class="btn btn-light">Retour</button>
+  </main>
+
+</div>
+<script src="js/main.js"></script>
+</body>
+</html>

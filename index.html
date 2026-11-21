@@ -29,29 +29,47 @@
     </header>
 
     <section class="salle">
-      <div class="section-title">Salle · Le Petit Gourmet</div>
-      <div class="clients">
-        <div class="slot">🪑</div>
-        <div class="slot">🪑</div>
-        <div class="slot">🪑</div>
+      <div id="client" class="client hidden">
+        <div id="face" class="face">🙂</div>
+        <div class="bubble">
+          <div class="order">
+            <span>🍔 Hamburger</span>
+            <span id="recipe" class="recipe"></span>
+          </div>
+          <div class="patience"><div id="patience-fill"></div></div>
+        </div>
       </div>
-      <div class="comptoir"></div>
+      <div id="client-empty" class="client-empty">En attente de clients…</div>
     </section>
 
     <section class="cuisine">
-      <div class="section-title">Cuisine</div>
-      <div class="chef-row">
-        <div id="chef" class="chef">
-          <div id="chef-tool" class="tool"></div>
-          <div class="chef-body">👨‍🍳</div>
+      <div class="stations">
+        <div class="station">
+          <div class="st-title">Prépa</div>
+          <div class="st-row">
+            <button class="tool" data-ing="pain">🍞<small>Pain</small></button>
+            <button class="tool" data-ing="salade">🥬<small>Salade</small></button>
+          </div>
+        </div>
+        <div class="station">
+          <div class="st-title">Cuisson</div>
+          <button id="btn-grill" class="tool wide"><span id="grill-icon">♨️</span><small id="grill-label">Steak</small></button>
+          <div class="bar"><div id="grill-marker" class="marker"></div></div>
         </div>
       </div>
-      <div class="zones">
-        <button class="zone" data-zone="prep"><span class="zi">🥬</span>Prépa</button>
-        <button class="zone" data-zone="cuisson"><span class="zi">🍳</span>Cuisson</button>
-        <button class="zone" data-zone="froid"><span class="zi">🥤</span>Froid</button>
-        <button class="zone" data-zone="dressage"><span class="zi">🍔</span>Dressage</button>
-        <button class="zone" data-zone="service"><span class="zi">🛎️</span>Service</button>
+
+      <div class="dressage">
+        <div class="st-title">Dressage</div>
+        <div class="plate-row">
+          <div id="chef" class="chef">👨‍🍳</div>
+          <div id="plate" class="plate"></div>
+        </div>
+      </div>
+
+      <div class="service-row">
+        <button id="btn-serve" class="btn btn-small">🛎️ Servir</button>
+        <button id="btn-trash" class="btn btn-small btn-light">🗑️ Jeter</button>
+        <button class="btn btn-small btn-off" disabled>🥤 Froid</button>
       </div>
     </section>
 
@@ -59,6 +77,17 @@
       <div class="avatar">👴</div>
       <p id="hint"></p>
     </section>
+
+    <div id="toast" class="toast"></div>
+
+    <div id="overlay" class="overlay hidden">
+      <div class="card">
+        <h2 id="ov-title"></h2>
+        <p id="ov-text"></p>
+        <button id="ov-btn" class="btn"></button>
+        <button id="ov-menu" class="btn btn-light">Menu</button>
+      </div>
+    </div>
 
   </main>
 

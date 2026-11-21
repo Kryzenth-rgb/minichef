@@ -19,17 +19,47 @@
     <p class="credit">SmartLife Apps · Prototype 0.1</p>
   </main>
 
-  <main id="screen-resto" class="screen hidden">
-    <div class="topbar">
+  <main id="screen-game" class="screen game hidden">
+
+    <header class="topbar">
+      <button id="btn-back" class="icon-btn" aria-label="Retour">⬅</button>
       <span>🪙 <b id="coins">0</b></span>
-      <span>Le Petit Gourmet</span>
-    </div>
-    <div class="dialog">
-      <div class="avatar">👨‍🍳</div>
-      <p><b>Auguste :</b> Bienvenue, petit chef ! Ce restaurant est à toi. Je vais t'apprendre les secrets de la cuisine.</p>
-    </div>
-    <button id="btn-test" class="btn">Test : gagner 10 pièces</button>
-    <button id="btn-back" class="btn btn-light">Retour</button>
+      <span>⭐ <b id="score">0</b></span>
+      <span>Niv. <b id="level">1</b></span>
+    </header>
+
+    <section class="salle">
+      <div class="section-title">Salle · Le Petit Gourmet</div>
+      <div class="clients">
+        <div class="slot">🪑</div>
+        <div class="slot">🪑</div>
+        <div class="slot">🪑</div>
+      </div>
+      <div class="comptoir"></div>
+    </section>
+
+    <section class="cuisine">
+      <div class="section-title">Cuisine</div>
+      <div class="chef-row">
+        <div id="chef" class="chef">
+          <div id="chef-tool" class="tool"></div>
+          <div class="chef-body">👨‍🍳</div>
+        </div>
+      </div>
+      <div class="zones">
+        <button class="zone" data-zone="prep"><span class="zi">🥬</span>Prépa</button>
+        <button class="zone" data-zone="cuisson"><span class="zi">🍳</span>Cuisson</button>
+        <button class="zone" data-zone="froid"><span class="zi">🥤</span>Froid</button>
+        <button class="zone" data-zone="dressage"><span class="zi">🍔</span>Dressage</button>
+        <button class="zone" data-zone="service"><span class="zi">🛎️</span>Service</button>
+      </div>
+    </section>
+
+    <section class="auguste">
+      <div class="avatar">👴</div>
+      <p id="hint"></p>
+    </section>
+
   </main>
 
 </div>

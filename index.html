@@ -25,51 +25,42 @@
       <button id="btn-back" class="icon-btn" aria-label="Retour">⬅</button>
       <span>🪙 <b id="coins">0</b></span>
       <span>⭐ <b id="score">0</b></span>
+      <span id="combo" class="combo hidden"></span>
       <span>Niv. <b id="level">1</b></span>
     </header>
 
-    <section class="salle">
-      <div id="client" class="client hidden">
-        <div id="face" class="face">🙂</div>
-        <div class="bubble">
-          <div class="order">
-            <span>🍔 Hamburger</span>
-            <span id="recipe" class="recipe"></span>
-          </div>
-          <div class="patience"><div id="patience-fill"></div></div>
-        </div>
-      </div>
-      <div id="client-empty" class="client-empty">En attente de clients…</div>
-    </section>
+    <section id="salle" class="salle"></section>
 
     <section class="cuisine">
-      <div class="stations">
-        <div class="station">
-          <div class="st-title">Prépa</div>
-          <div class="st-row">
-            <button class="tool" data-ing="pain">🍞<small>Pain</small></button>
-            <button class="tool" data-ing="salade">🥬<small>Salade</small></button>
+      <div class="zone-box bins">
+        <div class="st-title">Prépa</div>
+        <div class="zone-body">
+          <button class="tool" data-ing="pain">🍞<small>Pain</small></button>
+          <button class="tool" data-ing="salade">🥬<small>Salade</small></button>
+        </div>
+      </div>
+
+      <div class="zone-box grills">
+        <div class="st-title">Cuisson</div>
+        <div class="zone-body">
+          <div class="gcol">
+            <button class="tool" data-grill="0"><span id="gi0">♨️</span><small id="gl0">Steak</small></button>
+            <div class="bar"><div id="m0" class="marker"></div></div>
+          </div>
+          <div class="gcol">
+            <button class="tool" data-grill="1"><span id="gi1">♨️</span><small id="gl1">Steak</small></button>
+            <div class="bar"><div id="m1" class="marker"></div></div>
           </div>
         </div>
-        <div class="station">
-          <div class="st-title">Cuisson</div>
-          <button id="btn-grill" class="tool wide"><span id="grill-icon">♨️</span><small id="grill-label">Steak</small></button>
-          <div class="bar"><div id="grill-marker" class="marker"></div></div>
-        </div>
       </div>
 
-      <div class="dressage">
+      <div class="zone-box dress">
         <div class="st-title">Dressage</div>
-        <div class="plate-row">
+        <div class="zone-body">
           <div id="chef" class="chef">👨‍🍳</div>
           <div id="plate" class="plate"></div>
+          <button id="btn-trash" class="tool trash">🗑️<small>Jeter</small></button>
         </div>
-      </div>
-
-      <div class="service-row">
-        <button id="btn-serve" class="btn btn-small">🛎️ Servir</button>
-        <button id="btn-trash" class="btn btn-small btn-light">🗑️ Jeter</button>
-        <button class="btn btn-small btn-off" disabled>🥤 Froid</button>
       </div>
     </section>
 
@@ -84,8 +75,10 @@
       <div class="card">
         <h2 id="ov-title"></h2>
         <p id="ov-text"></p>
-        <button id="ov-btn" class="btn"></button>
-        <button id="ov-menu" class="btn btn-light">Menu</button>
+        <div class="row">
+          <button id="ov-btn" class="btn"></button>
+          <button id="ov-menu" class="btn btn-light">Menu</button>
+        </div>
       </div>
     </div>
 

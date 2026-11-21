@@ -6,19 +6,56 @@
 <meta name="theme-color" content="#287C78">
 <title>Mini Chef</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/menu.css">
 </head>
 <body>
 <div id="app">
 
-  <main id="screen-title" class="screen">
-    <div class="logo">🍳</div>
-    <h1>Mini Chef</h1>
-    <p class="subtitle">Les Saveurs du Monde</p>
-    <p class="resto">Le Petit Gourmet</p>
-    <button id="btn-play" class="btn">Jouer</button>
-    <p class="credit">SmartLife Apps · Prototype 0.1</p>
+  <!-- ÉCRAN D'ACCUEIL -->
+  <main id="screen-home" class="screen home">
+    <div class="h-top">
+      <button class="h-profile" data-go="profil">
+        <span class="pf-av">👦</span>
+        <span><b id="pf-name">Chef</b><small>Niv. <span id="pf-level">1</span></small></span>
+      </button>
+      <div class="h-right">
+        <span class="h-chip">🪙 <b id="home-coins">0</b></span>
+        <button class="h-round" data-go="parametres" aria-label="Paramètres">⚙️</button>
+      </div>
+    </div>
+
+    <div class="h-chef">
+      <img src="img/chef.png" alt="" onload="this.nextElementSibling.style.display='none'" onerror="this.remove()">
+      <span>👨‍🍳</span>
+    </div>
+
+    <div class="h-center">
+      <h1 class="h-title">Mini Chef</h1>
+      <div class="h-sub">Les Saveurs du Monde</div>
+      <div class="h-tag">La passion dans chaque assiette.</div>
+      <button id="btn-play" class="h-play">▶ Jouer<small>Niveau 1-1</small></button>
+    </div>
+
+    <nav class="h-nav">
+      <button class="h-btn" data-go="recettes">📖<span>Recettes</span></button>
+      <button class="h-btn" data-go="ameliorations">⭐<span>Améliorations</span></button>
+      <button class="h-btn" data-go="carte">🌍<span>Carte</span></button>
+      <button class="h-btn" data-go="quetes">📜<span>Quêtes</span></button>
+      <button class="h-btn" data-go="boutique">🛒<span>Boutique</span></button>
+      <button class="h-btn" data-go="profil">🧑‍🍳<span>Profil</span></button>
+    </nav>
   </main>
 
+  <!-- ÉCRAN SECONDAIRE (réutilisé par chaque menu) -->
+  <main id="screen-sub" class="screen sub hidden">
+    <header class="sub-head">
+      <button id="sub-back" class="icon-btn" aria-label="Retour">⬅</button>
+      <span id="sub-title"></span>
+    </header>
+    <div id="sub-body" class="sub-body"></div>
+  </main>
+
+  <!-- ÉCRAN DE JEU -->
   <main id="screen-game" class="screen game hidden">
 
     <header class="topbar">
@@ -86,5 +123,6 @@
 
 </div>
 <script src="js/main.js"></script>
+<script src="js/menu.js"></script>
 </body>
 </html>

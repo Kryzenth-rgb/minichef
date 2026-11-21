@@ -2,7 +2,10 @@
   "use strict";
 
   var KEY = "minichef_save_v1";
-  var DEFAULTS = { coins: 0, score: 0, level: 1 };
+  var DEFAULTS = {
+    coins: 0, score: 0, level: 1,
+    name: "Chef", served: 0, bestCombo: 0, threeStars: false, tips: true
+  };
   var state = load();
 
   var RECIPE = ["pain", "steak", "salade", "pain"];
@@ -290,11 +293,13 @@
     var left = leftOf(c);
     if (q >= 1) run.combo++; else run.combo = 0;
     if (run.combo > run.best) run.best = run.combo;
+    if (run.combo > state.bestCombo) state.bestCombo = run.combo;
     var bonus = q >= 1 ? Math.min(run.combo - 1, 4) * 2 : 0;
     var coins = Math.round(8 + q * 6 + left * 6) + bonus;
     var points = Math.round(100 * (q * 0.6 + left * 0.4)) + bonus * 10;
     state.coins += coins;
     state.score += points;
+    state.served += 1;
     save();
     refresh();
     run.served++;
@@ -339,6 +344,8 @@
     if (run.lost === 0 && run.served >= TOTAL && avg >= 0.9) stars = 3;
     else if (run.served >= TOTAL - 1) stars = 2;
     else if (run.served >= 1) stars = 1;
+    if (stars === 3) state.threeStars = true;
+    save();
     stopLoop();
     var served = run.served;
     var coins = run.coins;
@@ -362,6 +369,7 @@
     clients = [null, null, null];
     plate = [];
     grills = [null, null];
+    $("screen-game").classList.toggle("no-tips", !state.tips);
     refresh();
     renderClients();
     renderPlate();
@@ -380,7 +388,7 @@
     clearTimers();
     stopLoop();
     run = null;
-    show("screen-title");
+    window.MC.showHome();
   }
 
   /* ---------- Branchements ---------- */
@@ -408,6 +416,16 @@
       b.addEventListener("click", function () { onGrill(parseInt(b.getAttribute("data-grill"), 10)); });
     })(grillButtons[j]);
   }
+
+  /* Partage avec le menu (menu.js) */
+  window.MC = {
+    state: state,
+    defaults: DEFAULTS,
+    save: save,
+    refresh: refresh,
+    show: show,
+    showHome: function () { show("screen-home"); }
+  };
 
   refresh();
 })();

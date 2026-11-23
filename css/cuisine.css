@@ -1,0 +1,22 @@
+/* Cuisine camerounaise : ajustements de la mise en page */
+.cuisine { gap: 6px; }
+.prep { flex: 1.7; }
+.grills, .fryers { flex: 1; }
+.dress { flex: 1.2; }
+.zone-box { padding: 4px 6px; }
+.tool { font-size: 22px; }
+.tool small { font-size: 10px; }
+.tool.trash { flex: 0 0 48px; }
+.board {
+  flex: 0 0 56px; display: flex; align-items: center; justify-content: center;
+  background: #fff; color: #34434B; border-radius: 12px;
+  border: 2px dashed #bbb; font-size: 18px;
+}
+.board.on { border-style: solid; border-color: #F2C65D; background: #fff7e0; }
+.bar.fry {
+  background: linear-gradient(to right, #e57373 0 33.3%, #F2C65D 33.3% 75%, #555 75% 100%);
+}
+.slot { width: 34px; height: 34px; font-size: 20px; }
+.chef { font-size: 30px; }
+.dish { margin-right: 2px; }
+.rush { font-size: 14px; }

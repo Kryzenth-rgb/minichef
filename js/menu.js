@@ -29,7 +29,7 @@
   function quest(title, val, goal) {
     var done = val >= goal;
     var pct = Math.min(1, val / goal) * 100;
-    return '<div class="mc-card' + (done ? "" : "") + '">' +
+    return '<div class="mc-card">' +
       '<div class="c-ic">' + (done ? "✅" : "🎯") + "</div>" +
       '<div class="c-tx"><b>' + title + "</b>" +
       '<div class="q-bar"><div style="width:' + pct + '%"></div></div>' +
@@ -41,26 +41,28 @@
     recettes: {
       title: "📖 Recettes",
       html: function () {
-        return item("🍔", "Hamburger classique", "🍞 → 🥩 → 🥬 → 🍞<br>Débloqué", false) +
-          item("🍟", "Frites", "Bientôt disponible", true) +
-          item("🥤", "Jus d'orange", "Bientôt disponible", true);
+        return item("🍢", "Brochettes de poulet et plantains",
+            "Poulet → marinade → brochette → gril.<br>Plantains à la friteuse.<br>Débloqué", false) +
+          item("🍗", "Poulet braisé et accompagnement", "Bientôt disponible", true) +
+          item("🍩", "Beignets-haricots", "Bientôt disponible", true);
       }
     },
     ameliorations: {
       title: "⭐ Améliorations",
       html: function () {
         return item("🔥", "Gril plus rapide", "Bientôt disponible", true) +
-          item("⏳", "Clients plus patients", "Bientôt disponible", true) +
+          item("🍌", "Friteuse plus grande", "Bientôt disponible", true) +
           item("🪴", "Décoration du restaurant", "Bientôt disponible", true);
       }
     },
     carte: {
       title: "🌍 Carte du monde",
       html: function () {
-        return item("🇫🇷", "Le Petit Gourmet · Paris", "Niveau 1-1 · Disponible", false) +
-          item("🍕", "Rome", "Bientôt disponible", true) +
-          item("🍣", "Tokyo", "Bientôt disponible", true) +
-          item("🌮", "Mexico", "Bientôt disponible", true);
+        return item("🏠", "Belleville · Le Petit Gourmet", "Niveau 1-1 · Disponible", false) +
+          item("🏖️", "Port-Soleil", "Cuisine côtière · Bientôt", true) +
+          item("🏛️", "Bellacosta", "Inspirations méditerranéennes · Bientôt", true) +
+          item("🏯", "Hoshimori", "Cuisine japonaise · Bientôt", true) +
+          item("🌆", "Nova Cité", "Cuisine fusion · Bientôt", true);
       }
     },
     quetes: {

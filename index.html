@@ -7,6 +7,7 @@
 <title>Mini Chef</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/menu.css">
+<link rel="stylesheet" href="css/cuisine.css">
 </head>
 <body>
 <div id="app">
@@ -61,32 +62,51 @@
     <header class="topbar">
       <button id="btn-back" class="icon-btn" aria-label="Retour">⬅</button>
       <span>🪙 <b id="coins">0</b></span>
-      <span>⭐ <b id="score">0</b></span>
+      <span>🎯 <b id="goal">0/70</b></span>
+      <span>⏱ <b id="timer">2:30</b></span>
       <span id="combo" class="combo hidden"></span>
+      <span>⭐ <b id="score">0</b></span>
       <span>Niv. <b id="level">1</b></span>
     </header>
 
     <section id="salle" class="salle"></section>
 
     <section class="cuisine">
-      <div class="zone-box bins">
+
+      <div class="zone-box prep">
         <div class="st-title">Prépa</div>
         <div class="zone-body">
-          <button class="tool" data-ing="pain">🍞<small>Pain</small></button>
-          <button class="tool" data-ing="salade">🥬<small>Salade</small></button>
+          <button class="tool" data-prep="poulet">🍗<small>Poulet</small></button>
+          <button class="tool" data-prep="marinade">🌶️<small>Marinade</small></button>
+          <button class="tool" data-prep="brochette">🍢<small>Embrocher</small></button>
+          <div id="board" class="board"></div>
         </div>
       </div>
 
       <div class="zone-box grills">
-        <div class="st-title">Cuisson</div>
+        <div class="st-title">Gril</div>
         <div class="zone-body">
           <div class="gcol">
-            <button class="tool" data-grill="0"><span id="gi0">♨️</span><small id="gl0">Steak</small></button>
-            <div class="bar"><div id="m0" class="marker"></div></div>
+            <button class="tool" data-grill="0"><span id="gi0">♨️</span><small id="gl0">Brochette</small></button>
+            <div class="bar"><div id="gm0" class="marker"></div></div>
           </div>
           <div class="gcol">
-            <button class="tool" data-grill="1"><span id="gi1">♨️</span><small id="gl1">Steak</small></button>
-            <div class="bar"><div id="m1" class="marker"></div></div>
+            <button class="tool" data-grill="1"><span id="gi1">♨️</span><small id="gl1">Brochette</small></button>
+            <div class="bar"><div id="gm1" class="marker"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="zone-box fryers">
+        <div class="st-title">Friteuse</div>
+        <div class="zone-body">
+          <div class="gcol">
+            <button class="tool" data-fry="0"><span id="fi0">🥘</span><small id="fl0">Plantain</small></button>
+            <div class="bar fry"><div id="fm0" class="marker"></div></div>
+          </div>
+          <div class="gcol">
+            <button class="tool" data-fry="1"><span id="fi1">🥘</span><small id="fl1">Plantain</small></button>
+            <div class="bar fry"><div id="fm1" class="marker"></div></div>
           </div>
         </div>
       </div>
@@ -99,6 +119,7 @@
           <button id="btn-trash" class="tool trash">🗑️<small>Jeter</small></button>
         </div>
       </div>
+
     </section>
 
     <section class="auguste">
@@ -125,4 +146,4 @@
 <script src="js/main.js"></script>
 <script src="js/menu.js"></script>
 </body>
-</html>
+            </html>

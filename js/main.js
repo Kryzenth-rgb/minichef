@@ -8,22 +8,26 @@
   };
   var state = load();
 
-  var RECIPE = ["pain", "steak", "salade", "pain"];
-  var NAMES = { pain: "le pain", steak: "le steak", salade: "la salade" };
-  var ICONS = { pain: "🍞", steak: "🥩", salade: "🥬" };
-  var COOK_RAW = 3000;
-  var COOK_BURN = 6000;
-  var COOK_MAX = 8000;
-  var PATIENCE = 40000;
+  var GRILL = { raw: 3000, burn: 6000, max: 8000 };
+  var FRY = { raw: 2000, burn: 4500, max: 6000 };
   var TOTAL = 6;
   var SLOTS = 3;
-  var GRILLS = 2;
+  var DURATION = 150;
+  var GOAL = 70;
+  var ICON = { brochette: "🍢", plantain: "🍌" };
+  var LABEL = { brochette: "les brochettes", plantain: "les plantains" };
   var FACES = ["👩", "👨", "🧑", "👵", "👴", "🧒"];
+  var ORDERS = [
+    ["brochette", "plantain"], ["brochette", "plantain"],
+    ["brochette"], ["plantain"]
+  ];
 
   var run = null;
   var clients = [null, null, null];
   var plate = [];
+  var board = null;
   var grills = [null, null];
+  var fryers = [null, null];
   var timers = [];
   var loop = null;
 
@@ -86,10 +90,21 @@
       el.classList.add("hidden");
     }
   }
+  function fmt(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function updateHud() {
+    $("goal").textContent = (run ? run.gain : 0) + "/" + GOAL;
+    var left = run ? DURATION - (Date.now() - run.t0) / 1000 : DURATION;
+    $("timer").textContent = fmt(left);
+  }
 
   /* ---------- Clients ---------- */
   function leftOf(c) {
-    return Math.max(0, 1 - (Date.now() - c.born) / PATIENCE);
+    return Math.max(0, 1 - (Date.now() - c.born) / c.patience);
   }
 
   function renderClients() {
@@ -101,8 +116,12 @@
       } else {
         html += '<div class="cslot" data-slot="' + i + '">' +
           '<div class="face">' + c.face + "</div>" +
-          '<div class="bubble"><span class="dish">🍔</span>' +
-          '<div class="patience"><div id="pf' + i + '"></div></div></div></div>';
+          '<div class="bubble"><div>';
+        for (var k = 0; k < c.order.length; k++) {
+          html += '<span class="dish">' + ICON[c.order[k]] + "</span>";
+        }
+        if (c.rushed) html += '<span class="rush">⏱</span>';
+        html += '</div><div class="patience"><div id="pf' + i + '"></div></div></div></div>';
       }
     }
     $("salle").innerHTML = html;
@@ -122,13 +141,18 @@
     }
   }
 
+  function matches(order) {
+    if (plate.length !== order.length) return false;
+    var a = plate.map(function (p) { return p.type; }).sort().join();
+    return a === order.slice().sort().join();
+  }
+
   function markReady() {
-    var full = plate.length === RECIPE.length;
     var els = document.querySelectorAll(".cslot");
     for (var k = 0; k < els.length; k++) {
       var i = parseInt(els[k].getAttribute("data-slot"), 10);
       var c = clients[i];
-      els[k].classList.toggle("ready", full && !!c && c.state === "wait");
+      els[k].classList.toggle("ready", !!c && c.state === "wait" && matches(c.order));
     }
   }
 
@@ -146,15 +170,24 @@
       if (!clients[i]) { free = i; break; }
     }
     if (free < 0) { later(trySpawn, 1500); return; }
+    var rushed = run.spawned > 0 && Math.random() < 0.35;
+    var order = run.spawned === 0 ? ORDERS[0] : ORDERS[Math.floor(Math.random() * ORDERS.length)];
     clients[free] = {
       born: Date.now(),
+      patience: rushed ? 30000 : 45000,
+      rushed: rushed,
       face: FACES[Math.floor(Math.random() * FACES.length)],
+      order: order,
       state: "wait"
     };
     run.spawned++;
     renderClients();
-    if (run.spawned === 1) say("Un client arrive ! Pain, steak, salade, pain. Lance vite un steak !");
-    if (run.spawned < TOTAL) later(trySpawn, 6500);
+    if (run.spawned === 1) {
+      say("Un client arrive ! Brochette : touche Poulet, Marinade, puis Embrocher. Plantains : directement à la friteuse.");
+    } else if (rushed) {
+      say("Attention, un client pressé ⏱ est arrivé : il a moins de patience !");
+    }
+    if (run.spawned < TOTAL) later(trySpawn, 7000);
   }
 
   function finishClient(i) {
@@ -177,41 +210,80 @@
   }
 
   /* ---------- Assiette ---------- */
-  function plateIcon(p) {
-    if (p.ing === "steak") return p.q >= 1 ? "🍖" : "🥩";
-    return ICONS[p.ing];
-  }
   function renderPlate() {
     var html = "";
-    for (var i = 0; i < RECIPE.length; i++) {
-      if (i < plate.length) {
-        html += '<div class="slot full">' + plateIcon(plate[i]) + "</div>";
-      } else {
-        html += '<div class="slot ghost' + (i === plate.length ? " next" : "") + '">' +
-          ICONS[RECIPE[i]] + "</div>";
-      }
+    for (var i = 0; i < 2; i++) {
+      if (i < plate.length) html += '<div class="slot full">' + ICON[plate[i].type] + "</div>";
+      else html += '<div class="slot"></div>';
     }
     $("plate").innerHTML = html;
     markReady();
   }
 
-  /* ---------- Grils ---------- */
-  function grillState(g) {
-    if (!g) return "empty";
-    var t = Date.now() - g.start;
-    if (t < COOK_RAW) return "raw";
-    if (t < COOK_BURN) return "perfect";
+  function addToPlate(type, q) {
+    for (var i = 0; i < plate.length; i++) {
+      if (plate[i].type === type) {
+        say("Il y a déjà " + LABEL[type] + " dans l'assiette !");
+        return false;
+      }
+    }
+    if (plate.length >= 2) { say("L'assiette est pleine."); return false; }
+    plate.push({ type: type, q: q });
+    busy();
+    renderPlate();
+    return true;
+  }
+
+  /* ---------- Planche de préparation ---------- */
+  function renderBoard() {
+    var b = $("board");
+    var txt = { poulet: "🍗", marine: "🍗🌶️", brochette: "🍢" };
+    b.textContent = board ? txt[board.stage] : "";
+    b.classList.toggle("on", !!board);
+  }
+
+  function onPrep(kind) {
+    if (!run) return;
+    if (kind === "poulet") {
+      if (board) { say("La planche est déjà occupée : termine ou pose ta brochette."); return; }
+      board = { stage: "poulet" };
+      busy();
+      say("Poulet prêt. Ajoute maintenant la marinade 🌶️.");
+    } else if (kind === "marinade") {
+      if (!board) { say("Prends d'abord le poulet."); return; }
+      if (board.stage !== "poulet") { say("C'est déjà mariné : touche Embrocher."); return; }
+      board.stage = "marine";
+      busy();
+      say("Bien mariné ! Touche Embrocher.");
+    } else if (kind === "brochette") {
+      if (!board || board.stage !== "marine") {
+        say("Il faut d'abord le poulet, puis la marinade.");
+        return;
+      }
+      board.stage = "brochette";
+      busy();
+      say("Brochette prête ! Pose-la sur un gril.");
+    }
+    renderBoard();
+  }
+
+  /* ---------- Gril et friteuse ---------- */
+  function stateOf(item, cfg) {
+    if (!item) return "empty";
+    var t = Date.now() - item.start;
+    if (t < cfg.raw) return "raw";
+    if (t < cfg.burn) return "perfect";
     return "burnt";
   }
-  function renderGrills() {
-    var icons = { empty: "♨️", raw: "🥩", perfect: "🍖", burnt: "⬛" };
-    for (var i = 0; i < GRILLS; i++) {
-      var s = grillState(grills[i]);
-      $("gi" + i).textContent = icons[s];
-      $("gl" + i).textContent = s === "empty" ? "Steak" : (s === "burnt" ? "Jeter" : "Retirer");
-      var m = $("m" + i);
-      if (grills[i]) {
-        var pct = Math.min(100, (Date.now() - grills[i].start) / COOK_MAX * 100);
+
+  function paintStation(list, cfg, ip, lp, mp, icons, emptyLabel) {
+    for (var i = 0; i < list.length; i++) {
+      var s = stateOf(list[i], cfg);
+      $(ip + i).textContent = icons[s];
+      $(lp + i).textContent = s === "empty" ? emptyLabel : (s === "burnt" ? "Jeter" : "Retirer");
+      var m = $(mp + i);
+      if (list[i]) {
+        var pct = Math.min(100, (Date.now() - list[i].start) / cfg.max * 100);
         m.style.display = "block";
         m.style.left = "calc(" + pct + "% - 2px)";
       } else {
@@ -220,58 +292,53 @@
     }
   }
 
-  /* ---------- Boucle de jeu ---------- */
-  function startLoop() {
-    stopLoop();
-    loop = setInterval(function () {
-      renderGrills();
-      if (run) { checkPatience(); paintBars(); }
-    }, 100);
-  }
-  function stopLoop() {
-    if (loop) { clearInterval(loop); loop = null; }
-  }
-
-  /* ---------- Actions du joueur ---------- */
-  function addIng(ing) {
-    if (!run) return;
-    if (plate.length >= RECIPE.length) { say("L'assiette est complète : touche un client pour le servir !"); return; }
-    var expected = RECIPE[plate.length];
-    if (ing !== expected) { say("Pas maintenant ! Il faut d'abord " + NAMES[expected] + "."); return; }
-    plate.push({ ing: ing, q: 1 });
-    busy();
-    renderPlate();
-    if (plate.length === RECIPE.length) say("Hamburger prêt ! Touche un client pour le servir.");
-    else say("Bien ! Ensuite : " + NAMES[RECIPE[plate.length]] + ".");
+  function renderStations() {
+    paintStation(grills, GRILL, "gi", "gl", "gm",
+      { empty: "♨️", raw: "🍗", perfect: "🍢", burnt: "⬛" }, "Brochette");
+    paintStation(fryers, FRY, "fi", "fl", "fm",
+      { empty: "🥘", raw: "🍌", perfect: "🍌", burnt: "⬛" }, "Plantain");
   }
 
   function onGrill(i) {
     if (!run) return;
-    var s = grillState(grills[i]);
+    var s = stateOf(grills[i], GRILL);
     if (s === "empty") {
+      if (!board || board.stage !== "brochette") {
+        say("Prépare d'abord une brochette : Poulet, Marinade, puis Embrocher.");
+        return;
+      }
       grills[i] = { start: Date.now() };
+      board = null;
+      renderBoard();
       busy();
-      renderGrills();
-      say("Le steak cuit. Retire-le quand la barre est dorée !");
-      return;
-    }
-    if (s === "burnt") {
+      say("La brochette grille. Retire-la quand la barre est dorée !");
+    } else if (s === "burnt") {
       grills[i] = null;
-      renderGrills();
-      say("Brûlé ! Je le jette. Pose un nouveau steak.");
-      return;
+      say("Brûlée ! Je la jette. Il faudra en refaire une.");
+    } else {
+      if (!addToPlate("brochette", s === "perfect" ? 1 : 0.4)) return;
+      grills[i] = null;
+      say(s === "perfect" ? "Cuisson parfaite !" : "Un peu cru… mais ça passe.");
     }
-    if (plate.length >= RECIPE.length || RECIPE[plate.length] !== "steak") {
-      say("Le steak attendra : ce n'est pas encore son tour. Attention à ne pas le brûler !");
-      return;
+    renderStations();
+  }
+
+  function onFry(i) {
+    if (!run) return;
+    var s = stateOf(fryers[i], FRY);
+    if (s === "empty") {
+      fryers[i] = { start: Date.now() };
+      busy();
+      say("Le plantain frit. Retire-le quand la barre est dorée : ça va vite !");
+    } else if (s === "burnt") {
+      fryers[i] = null;
+      say("Brûlé ! Je le jette.");
+    } else {
+      if (!addToPlate("plantain", s === "perfect" ? 1 : 0.4)) return;
+      fryers[i] = null;
+      say(s === "perfect" ? "Plantain doré, parfait !" : "Encore un peu pâle… mais ça passe.");
     }
-    plate.push({ ing: "steak", q: s === "perfect" ? 1 : 0.4 });
-    grills[i] = null;
-    busy();
-    renderGrills();
-    renderPlate();
-    say((s === "perfect" ? "Cuisson parfaite ! " : "Un peu cru… mais ça passe. ") +
-        "Ensuite : " + NAMES[RECIPE[plate.length]] + ".");
+    renderStations();
   }
 
   function trash() {
@@ -281,22 +348,36 @@
     say("Assiette jetée. On recommence !");
   }
 
+  /* ---------- Service d'un client ---------- */
   function serveSlot(i) {
     if (!run) return;
     var c = clients[i];
     if (!c || c.state !== "wait") return;
-    if (plate.length < RECIPE.length) {
-      say("Prépare d'abord le hamburger, puis touche le client.");
+    if (!plate.length) { say("L'assiette est vide : prépare d'abord la commande."); return; }
+    if (!matches(c.order)) {
+      var wrong = null;
+      for (var k = 0; k < plate.length; k++) {
+        if (c.order.indexOf(plate[k].type) < 0) wrong = plate[k].type;
+      }
+      if (wrong) say("Ce client n'a pas commandé " + LABEL[wrong] + " !");
+      else say("Il manque encore un plat dans l'assiette.");
       return;
     }
-    var q = plate[1].q;
+    var sumq = 0;
+    var perfect = true;
+    for (var j = 0; j < plate.length; j++) {
+      sumq += plate[j].q;
+      if (plate[j].q < 1) perfect = false;
+    }
+    var items = plate.length;
+    var avg = sumq / items;
     var left = leftOf(c);
-    if (q >= 1) run.combo++; else run.combo = 0;
+    if (perfect) run.combo++; else run.combo = 0;
     if (run.combo > run.best) run.best = run.combo;
     if (run.combo > state.bestCombo) state.bestCombo = run.combo;
-    var bonus = q >= 1 ? Math.min(run.combo - 1, 4) * 2 : 0;
-    var coins = Math.round(8 + q * 6 + left * 6) + bonus;
-    var points = Math.round(100 * (q * 0.6 + left * 0.4)) + bonus * 10;
+    var bonus = perfect ? Math.min(run.combo - 1, 4) * 2 : 0;
+    var coins = Math.round(items * 5 + sumq * 4 + left * 5) + bonus;
+    var points = Math.round(50 * sumq + 30 * left * items) + bonus * 10;
     state.coins += coins;
     state.score += points;
     state.served += 1;
@@ -304,58 +385,90 @@
     refresh();
     run.served++;
     run.coins += coins;
-    run.q.push(q);
+    run.gain += coins;
+    run.q.push(avg);
     c.state = "done";
     c.face = "😋";
     plate = [];
     renderPlate();
     renderClients();
     updateCombo();
+    updateHud();
     toast(bonus > 0 ? "COMBO x" + run.combo + "  +" + coins + " 🪙" : "+" + coins + " 🪙");
-    say(q >= 1
-      ? "Excellent ! Cuisson parfaite, +" + coins + " pièces."
-      : "Merci ! Mais le steak était un peu cru. +" + coins + " pièces.");
+    say(perfect
+      ? "Excellent ! Tout est parfait, +" + coins + " pièces."
+      : "Merci ! Mais la cuisson pouvait être meilleure. +" + coins + " pièces.");
     finishClient(i);
   }
 
+  /* ---------- Boucle de jeu ---------- */
+  function startLoop() {
+    stopLoop();
+    loop = setInterval(function () {
+      renderStations();
+      if (!run) return;
+      checkPatience();
+      paintBars();
+      updateHud();
+      if (run && DURATION - (Date.now() - run.t0) / 1000 <= 0) endService();
+    }, 100);
+  }
+  function stopLoop() {
+    if (loop) { clearInterval(loop); loop = null; }
+  }
+
   /* ---------- Début et fin de service ---------- */
-  function startService() {
-    clearTimers();
-    run = { served: 0, lost: 0, done: 0, coins: 0, q: [], spawned: 0, combo: 0, best: 0 };
+  function resetKitchen() {
     clients = [null, null, null];
     plate = [];
+    board = null;
     grills = [null, null];
+    fryers = [null, null];
+  }
+
+  function startService() {
+    clearTimers();
+    resetKitchen();
+    run = {
+      served: 0, lost: 0, done: 0, coins: 0, gain: 0, q: [],
+      spawned: 0, combo: 0, best: 0, t0: Date.now()
+    };
     $("overlay").classList.add("hidden");
     renderClients();
     renderPlate();
-    renderGrills();
+    renderBoard();
+    renderStations();
     updateCombo();
+    updateHud();
     startLoop();
-    say("Le service commence ! Prépare un steak, le premier client arrive.");
+    say("Le service commence ! Prépare une brochette, le premier client arrive.");
     later(trySpawn, 1500);
   }
 
   function endService() {
     if (!run) return;
+    clearTimers();
     var sum = 0;
     for (var i = 0; i < run.q.length; i++) sum += run.q[i];
     var avg = run.q.length ? sum / run.q.length : 0;
+    var reached = run.gain >= GOAL;
     var stars = 0;
-    if (run.lost === 0 && run.served >= TOTAL && avg >= 0.9) stars = 3;
-    else if (run.served >= TOTAL - 1) stars = 2;
+    if (reached && run.lost === 0 && run.served >= TOTAL && avg >= 0.9) stars = 3;
+    else if (reached) stars = 2;
     else if (run.served >= 1) stars = 1;
     if (stars === 3) state.threeStars = true;
     save();
     stopLoop();
     var served = run.served;
-    var coins = run.coins;
+    var gain = run.gain;
     var best = run.best;
     run = null;
     updateCombo();
+    updateHud();
     overlay(
-      "Service terminé !",
+      reached ? "Objectif atteint !" : "Service terminé",
       "Clients servis : " + served + "/" + TOTAL + "\n" +
-      "Pièces gagnées : " + coins + " 🪙\n" +
+      "Pièces gagnées : " + gain + " / " + GOAL + " 🪙\n" +
       "Meilleur combo : " + best + "\n" +
       (stars ? "⭐".repeat(stars) : "Pas d'étoile cette fois"),
       "Rejouer"
@@ -366,19 +479,22 @@
     clearTimers();
     stopLoop();
     run = null;
-    clients = [null, null, null];
-    plate = [];
-    grills = [null, null];
+    resetKitchen();
     $("screen-game").classList.toggle("no-tips", !state.tips);
     refresh();
     renderClients();
     renderPlate();
-    renderGrills();
+    renderBoard();
+    renderStations();
     updateCombo();
+    updateHud();
     say("Bienvenue au Petit Gourmet !");
     overlay(
       "Le Petit Gourmet",
-      "Sers 6 clients.\nHamburger : pain, steak doré, salade, pain.\nQuand l'assiette est prête, touche un client.",
+      "Sers 6 clients en 2 min 30. Objectif : " + GOAL + " pièces.\n" +
+      "Brochette : poulet, marinade, embrocher, puis gril.\n" +
+      "Plantains : touche la friteuse.\n" +
+      "Assiette prête : touche le client.",
       "Commencer"
     );
     show("screen-game");
@@ -404,18 +520,17 @@
     serveSlot(parseInt(el.getAttribute("data-slot"), 10));
   });
 
-  var ingButtons = document.querySelectorAll("[data-ing]");
-  for (var i = 0; i < ingButtons.length; i++) {
-    (function (b) {
-      b.addEventListener("click", function () { addIng(b.getAttribute("data-ing")); });
-    })(ingButtons[i]);
+  function bindAll(selector, attr, fn) {
+    var list = document.querySelectorAll(selector);
+    for (var n = 0; n < list.length; n++) {
+      (function (b) {
+        b.addEventListener("click", function () { fn(b.getAttribute(attr)); });
+      })(list[n]);
+    }
   }
-  var grillButtons = document.querySelectorAll("[data-grill]");
-  for (var j = 0; j < grillButtons.length; j++) {
-    (function (b) {
-      b.addEventListener("click", function () { onGrill(parseInt(b.getAttribute("data-grill"), 10)); });
-    })(grillButtons[j]);
-  }
+  bindAll("[data-prep]", "data-prep", onPrep);
+  bindAll("[data-grill]", "data-grill", function (v) { onGrill(parseInt(v, 10)); });
+  bindAll("[data-fry]", "data-fry", function (v) { onFry(parseInt(v, 10)); });
 
   /* Partage avec le menu (menu.js) */
   window.MC = {

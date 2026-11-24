@@ -60,7 +60,7 @@
   <main id="screen-game" class="screen game hidden">
 
     <header class="topbar">
-      <button id="btn-back" class="icon-btn" aria-label="Retour">⬅</button>
+      <button id="btn-back" class="icon-btn" aria-label="Pause">⏸</button>
       <span>🪙 <b id="coins">0</b></span>
       <div class="gbar">
         <div id="gfill"></div>
@@ -147,7 +147,11 @@
   </main>
 
 </div>
-<script>window.onerror=function(m,s,l){var d=document.createElement('div');d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:99;background:#c00;color:#fff;padding:6px;font-size:12px';d.textContent='Erreur: '+m+' ('+String(s).split('/').pop()+':'+l+')';document.body.appendChild(d);};</script>
+<script>
+function __show(t){var d=document.getElementById('__err');if(!d){d=document.createElement('div');d.id='__err';d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:99;background:#c00;color:#fff;padding:6px;font-size:11px;max-height:45%;overflow:auto';document.body.appendChild(d);}d.innerHTML+=t+'<br>';}
+window.onerror=function(m,s,l){__show('Erreur: '+m+' ('+String(s).split('/').pop()+':'+l+')');};
+window.addEventListener('error',function(e){if(e.target&&e.target.src){__show('Fichier introuvable: '+e.target.src.split('/').pop());}},true);
+</script>
 <script src="js/main.js"></script>
 <script src="js/menu.js"></script>
 </body>

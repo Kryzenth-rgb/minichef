@@ -1,4 +1,4 @@
-/* Cuisine camerounaise : ajustements de la mise en page */
+/* Cuisine camerounaise : mise en page */
 .cuisine { gap: 6px; }
 .prep { flex: 1.7; }
 .grills, .fryers { flex: 1; }
@@ -20,3 +20,38 @@
 .chef { font-size: 30px; }
 .dish { margin-right: 2px; }
 .rush { font-size: 14px; }
+
+/* Barre de pièces à 3 étoiles */
+.topbar { gap: 10px; }
+.gbar {
+  position: relative; flex: 1; height: 20px; margin: 0 22px 0 14px;
+  background: rgba(0, 0, 0, .35); border-radius: 10px;
+}
+#gfill {
+  height: 100%; width: 0; border-radius: 10px;
+  background: linear-gradient(#ffd54f, #F08A58); transition: width .3s;
+}
+.gstar {
+  position: absolute; top: -5px; font-size: 22px; font-style: normal;
+  transform: translateX(-50%); filter: grayscale(1) brightness(.7);
+}
+.gstar.on { filter: none; }
+.gtxt {
+  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  font-size: 12px; line-height: 20px; text-shadow: 0 1px 2px #000;
+}
+
+/* Écrans secondaires : niveaux et améliorations */
+.sec-title {
+  grid-column: 1 / -1; font-weight: 800; color: #287C78;
+  text-transform: uppercase; font-size: 12px; letter-spacing: .5px;
+}
+.lvn {
+  font-size: 20px; font-weight: 900; color: #287C78;
+  min-width: 46px; text-align: center;
+}
+.lv-card:active { transform: scale(.98); }
+.pips { letter-spacing: 2px; color: #F08A58; font-size: 14px; }
+.mini-btn:disabled {
+  background: #9aa5ab; box-shadow: 0 3px 0 #77828a; opacity: .8;
+}

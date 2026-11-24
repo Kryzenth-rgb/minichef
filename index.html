@@ -34,7 +34,7 @@
       <h1 class="h-title">Mini Chef</h1>
       <div class="h-sub">Les Saveurs du Monde</div>
       <div class="h-tag">La passion dans chaque assiette.</div>
-      <button id="btn-play" class="h-play">▶ Jouer<small>Niveau 1-1</small></button>
+      <button id="btn-play" class="h-play">▶ Jouer<small id="play-lvl">Niveau 1-1</small></button>
     </div>
 
     <nav class="h-nav">
@@ -62,11 +62,15 @@
     <header class="topbar">
       <button id="btn-back" class="icon-btn" aria-label="Retour">⬅</button>
       <span>🪙 <b id="coins">0</b></span>
-      <span>🎯 <b id="goal">0/70</b></span>
-      <span>⏱ <b id="timer">2:30</b></span>
+      <div class="gbar">
+        <div id="gfill"></div>
+        <i id="gs1" class="gstar">⭐</i>
+        <i id="gs2" class="gstar">⭐</i>
+        <i id="gs3" class="gstar">⭐</i>
+        <b id="gtxt" class="gtxt">0</b>
+      </div>
+      <span>👥 <b id="left">0</b></span>
       <span id="combo" class="combo hidden"></span>
-      <span>⭐ <b id="score">0</b></span>
-      <span>Niv. <b id="level">1</b></span>
     </header>
 
     <section id="salle" class="salle"></section>
@@ -135,7 +139,7 @@
         <p id="ov-text"></p>
         <div class="row">
           <button id="ov-btn" class="btn"></button>
-          <button id="ov-menu" class="btn btn-light">Menu</button>
+          <button id="ov-menu" class="btn btn-light">Niveaux</button>
         </div>
       </div>
     </div>
@@ -146,4 +150,4 @@
 <script src="js/main.js"></script>
 <script src="js/menu.js"></script>
 </body>
-            </html>
+      </html>

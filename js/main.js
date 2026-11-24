@@ -627,4 +627,60 @@
     clearTimers();
     stopLoop();
     run = null;
-    windo
+    window.MC.showHome();
+  }
+
+  function goLevels() {
+    clearTimers();
+    stopLoop();
+    run = null;
+    window.MC.openLevels();
+  }
+
+  /* ---------- Branchements ---------- */
+  $("btn-back").addEventListener("click", goHome);
+  $("ov-btn").addEventListener("click", function () {
+    if (phase === "intro") startService();
+    else openGame(after === "next" ? cur + 1 : cur);
+  });
+  $("ov-menu").addEventListener("click", goLevels);
+  $("btn-trash").addEventListener("click", trash);
+
+  $("salle").addEventListener("click", function (e) {
+    var el = e.target.closest(".cslot");
+    if (!el) return;
+    serveSlot(parseInt(el.getAttribute("data-slot"), 10));
+  });
+
+  function bindAll(selector, attr, fn) {
+    var list = document.querySelectorAll(selector);
+    for (var n = 0; n < list.length; n++) {
+      (function (b) {
+        b.addEventListener("click", function () { fn(b.getAttribute(attr)); });
+      })(list[n]);
+    }
+  }
+  bindAll("[data-prep]", "data-prep", onPrep);
+  bindAll("[data-grill]", "data-grill", function (v) { onGrill(parseInt(v, 10)); });
+  bindAll("[data-fry]", "data-fry", function (v) { onFry(parseInt(v, 10)); });
+
+  /* Partage avec le menu (menu.js) */
+  window.MC = {
+    state: state,
+    makeDefaults: makeDefaults,
+    LEVELS: LEVELS,
+    UPGRADES: UPGRADES,
+    save: save,
+    refresh: refresh,
+    show: show,
+    buy: buy,
+    nextLevel: nextLevel,
+    openGame: openGame,
+    showHome: function () { show("screen-home"); },
+    openLevels: function () { show("screen-home"); }
+  };
+
+  refresh();
+  updateHud();
+})();
+// FIN DU FICHIER

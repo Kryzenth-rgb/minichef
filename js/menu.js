@@ -7,11 +7,19 @@
 
   function $(id) { return document.getElementById(id); }
 
+  function starsStr(n) { return "⭐".repeat(n) + "☆".repeat(3 - n); }
+  function totalStars() {
+    var t = 0;
+    for (var i = 0; i < st.stars.length; i++) t += st.stars[i];
+    return t;
+  }
+
   /* ---------- Accueil ---------- */
   function renderHome() {
     $("pf-name").textContent = st.name;
     $("pf-level").textContent = st.level;
     $("home-coins").textContent = st.coins;
+    $("play-lvl").textContent = "Niveau 1-" + (MC.nextLevel() + 1);
   }
   function showHome() {
     renderHome();
@@ -38,6 +46,24 @@
 
   /* ---------- Contenu des écrans ---------- */
   var SCREENS = {
+    niveaux: {
+      title: "▶ Choisir un niveau",
+      html: function () {
+        var out = '<div class="sec-title">Belleville · Le Petit Gourmet · ' +
+          totalStars() + " / " + (MC.LEVELS.length * 3) + " ⭐</div>";
+        for (var i = 0; i < MC.LEVELS.length; i++) {
+          var L = MC.LEVELS[i];
+          var open = i === 0 || st.stars[i - 1] >= 1;
+          out += '<div class="mc-card lv-card' + (open ? "" : " locked") + '"' +
+            (open ? ' data-level="' + i + '"' : "") + ">" +
+            '<div class="c-ic lvn">1-' + (i + 1) + "</div>" +
+            '<div class="c-tx"><b>Niveau 1-' + (i + 1) + "</b>" +
+            "<span>" + (open ? starsStr(st.stars[i]) + " · " + L.clients + " clients" : "Termine le niveau précédent") + "</span></div>" +
+            (open ? "" : '<div class="c-lock">🔒</div>') + "</div>";
+        }
+        return out;
+      }
+    },
     recettes: {
       title: "📖 Recettes",
       html: function () {
@@ -50,15 +76,37 @@
     ameliorations: {
       title: "⭐ Améliorations",
       html: function () {
-        return item("🔥", "Gril plus rapide", "Bientôt disponible", true) +
-          item("🍌", "Friteuse plus grande", "Bientôt disponible", true) +
-          item("🪴", "Décoration du restaurant", "Bientôt disponible", true);
+        var out = "";
+        var group = "";
+        for (var i = 0; i < MC.UPGRADES.length; i++) {
+          var u = MC.UPGRADES[i];
+          if (u.group !== group) {
+            group = u.group;
+            out += '<div class="sec-title">' + group + "</div>";
+          }
+          var lvl = st.up[u.id] || 0;
+          var max = u.costs.length;
+          var pips = "▮".repeat(lvl) + "▯".repeat(max - lvl);
+          var btn;
+          if (lvl >= max) {
+            btn = '<button class="mini-btn" disabled>MAX</button>';
+          } else {
+            var cost = u.costs[lvl];
+            btn = '<button class="mini-btn" data-up="' + u.id + '"' +
+              (st.coins < cost ? " disabled" : "") + ">Améliorer<br>" + cost + " 🪙</button>";
+          }
+          out += '<div class="mc-card"><div class="c-ic">' + u.icon + "</div>" +
+            '<div class="c-tx"><b>' + u.title + "</b><span>" + u.text + "</span>" +
+            '<div class="pips">' + pips + "</div></div>" + btn + "</div>";
+        }
+        out += item("🪴", "Décoration du restaurant", "Bientôt disponible", true);
+        return out;
       }
     },
     carte: {
       title: "🌍 Carte du monde",
       html: function () {
-        return item("🏠", "Belleville · Le Petit Gourmet", "Niveau 1-1 · Disponible", false) +
+        return item("🏠", "Belleville · Le Petit Gourmet", "6 niveaux · Disponible", false) +
           item("🏖️", "Port-Soleil", "Cuisine côtière · Bientôt", true) +
           item("🏛️", "Bellacosta", "Inspirations méditerranéennes · Bientôt", true) +
           item("🏯", "Hoshimori", "Cuisine japonaise · Bientôt", true) +
@@ -70,7 +118,8 @@
       html: function () {
         return quest("Sers 10 clients", st.served, 10) +
           quest("Réussis un combo x3", st.bestCombo, 3) +
-          quest("Obtiens 3 étoiles sur un service", st.threeStars ? 1 : 0, 1);
+          quest("Collecte 9 étoiles", totalStars(), 9) +
+          quest("Obtiens 3 étoiles sur un niveau", st.threeStars ? 1 : 0, 1);
       }
     },
     boutique: {
@@ -89,7 +138,7 @@
           '</div><button id="name-save" class="mini-btn">Enregistrer</button></div>' +
           item("🏅", "Niveau", st.level, false) +
           item("🪙", "Pièces", st.coins, false) +
-          item("⭐", "Score total", st.score, false) +
+          item("⭐", "Étoiles", totalStars() + " / " + (MC.LEVELS.length * 3), false) +
           item("🍽️", "Clients servis", st.served, false) +
           item("🔥", "Meilleur combo", st.bestCombo, false);
       }
@@ -101,7 +150,7 @@
           "<b>Astuces d'Auguste</b><span id=\"tips-state\"></span></div>" +
           '<button id="tg-tips" class="mini-btn"></button></div>' +
           '<div class="mc-card wide"><div class="c-ic">🗑️</div><div class="c-tx">' +
-          "<b>Progression</b><span>Efface les pièces, le score et les quêtes.</span></div>" +
+          "<b>Progression</b><span>Efface pièces, étoiles, améliorations et quêtes.</span></div>" +
           '<button id="btn-reset" class="mini-btn danger"></button></div>' +
           item("ℹ️", "Mini Chef", "Prototype 0.1 · SmartLife Apps", false);
       }
@@ -135,7 +184,7 @@
     });
     $("btn-reset").addEventListener("click", function () {
       if (!armed) { armed = true; paintSettings(); return; }
-      Object.assign(st, MC.defaults);
+      Object.assign(st, MC.makeDefaults());
       MC.save();
       MC.refresh();
       armed = false;
@@ -154,11 +203,21 @@
     if (key === "parametres") bindSettings();
     MC.show("screen-sub");
   }
+  MC.openLevels = function () { openSub("niveaux"); };
 
   /* ---------- Branchements ---------- */
+  $("btn-play").addEventListener("click", MC.openLevels);
+
   document.addEventListener("click", function (e) {
-    var b = e.target.closest("[data-go]");
-    if (b) openSub(b.getAttribute("data-go"));
+    var lvl = e.target.closest("[data-level]");
+    if (lvl) { MC.openGame(parseInt(lvl.getAttribute("data-level"), 10)); return; }
+    var up = e.target.closest("[data-up]");
+    if (up) {
+      if (MC.buy(up.getAttribute("data-up"))) openSub("ameliorations");
+      return;
+    }
+    var go = e.target.closest("[data-go]");
+    if (go) openSub(go.getAttribute("data-go"));
   });
   $("sub-back").addEventListener("click", showHome);
 

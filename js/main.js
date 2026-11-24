@@ -2,25 +2,45 @@
   "use strict";
 
   var KEY = "minichef_save_v1";
-  var DEFAULTS = {
-    coins: 0, score: 0, level: 1,
-    name: "Chef", served: 0, bestCombo: 0, threeStars: false, tips: true
-  };
-  var state = load();
+
+  var LEVELS = [
+    { clients: 6,  spawn: 7000, pat: 45000, rush: 0.2,  duo: 0.4,  goals: [55, 80, 105],   ch: "nolost" },
+    { clients: 7,  spawn: 6500, pat: 43000, rush: 0.3,  duo: 0.5,  goals: [75, 105, 135],  ch: "noburn" },
+    { clients: 8,  spawn: 6000, pat: 41000, rush: 0.35, duo: 0.5,  goals: [90, 125, 160],  ch: "combo:3" },
+    { clients: 9,  spawn: 5500, pat: 40000, rush: 0.4,  duo: 0.55, goals: [105, 145, 185], ch: "perfect:5" },
+    { clients: 10, spawn: 5200, pat: 38000, rush: 0.4,  duo: 0.6,  goals: [120, 165, 210], ch: "nolost" },
+    { clients: 12, spawn: 4800, pat: 36000, rush: 0.45, duo: 0.6,  goals: [150, 205, 260], ch: "combo:4" }
+  ];
+
+  var UPGRADES = [
+    { id: "grill", icon: "🔥", group: "Cuisine", title: "Gril rapide",
+      text: "Brochettes cuites 12 % plus vite par niveau", costs: [60, 120, 200] },
+    { id: "fry", icon: "🍌", group: "Cuisine", title: "Friteuse rapide",
+      text: "Plantains frits 12 % plus vite par niveau", costs: [50, 100, 170] },
+    { id: "price", icon: "💰", group: "Cuisine", title: "Prix des plats",
+      text: "+10 % de pièces par plat et par niveau", costs: [80, 160, 260] },
+    { id: "patience", icon: "⏳", group: "Salle", title: "Clients patients",
+      text: "+12 % de patience par niveau", costs: [70, 140, 230] }
+  ];
 
   var GRILL = { raw: 3000, burn: 6000, max: 8000 };
   var FRY = { raw: 2000, burn: 4500, max: 6000 };
-  var TOTAL = 6;
   var SLOTS = 3;
-  var DURATION = 150;
-  var GOAL = 70;
+  var CH_REWARD = 25;
   var ICON = { brochette: "🍢", plantain: "🍌" };
   var LABEL = { brochette: "les brochettes", plantain: "les plantains" };
   var FACES = ["👩", "👨", "🧑", "👵", "👴", "🧒"];
-  var ORDERS = [
-    ["brochette", "plantain"], ["brochette", "plantain"],
-    ["brochette"], ["plantain"]
-  ];
+
+  var state = load();
+
+  var cur = 0;
+  var lv = LEVELS[0];
+  var cfgG = GRILL;
+  var cfgF = FRY;
+  var pf = 1;
+  var pm = 1;
+  var phase = "intro";
+  var after = "retry";
 
   var run = null;
   var clients = [null, null, null];
@@ -32,12 +52,28 @@
   var loop = null;
 
   /* ---------- Sauvegarde ---------- */
+  function makeDefaults() {
+    return {
+      coins: 0, score: 0, level: 1,
+      name: "Chef", served: 0, bestCombo: 0, threeStars: false, tips: true,
+      stars: LEVELS.map(function () { return 0; }),
+      chDone: LEVELS.map(function () { return false; }),
+      up: { grill: 0, fry: 0, price: 0, patience: 0 }
+    };
+  }
   function load() {
+    var s = makeDefaults();
     try {
       var raw = localStorage.getItem(KEY);
-      if (raw) return Object.assign({}, DEFAULTS, JSON.parse(raw));
+      if (raw) {
+        var d = JSON.parse(raw);
+        Object.assign(s, d);
+        s.up = Object.assign(makeDefaults().up, d.up || {});
+        s.stars = LEVELS.map(function (_, i) { return (d.stars && d.stars[i]) || 0; });
+        s.chDone = LEVELS.map(function (_, i) { return !!(d.chDone && d.chDone[i]); });
+      }
     } catch (e) {}
-    return Object.assign({}, DEFAULTS);
+    return s;
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
@@ -59,8 +95,6 @@
   function refresh() {
     state.level = 1 + Math.floor(state.score / 500);
     $("coins").textContent = state.coins;
-    $("score").textContent = state.score;
-    $("level").textContent = state.level;
   }
   function busy() {
     var c = $("chef");
@@ -90,16 +124,79 @@
       el.classList.add("hidden");
     }
   }
-  function fmt(sec) {
-    sec = Math.max(0, Math.ceil(sec));
-    var m = Math.floor(sec / 60);
-    var s = sec % 60;
-    return m + ":" + (s < 10 ? "0" : "") + s;
-  }
   function updateHud() {
-    $("goal").textContent = (run ? run.gain : 0) + "/" + GOAL;
-    var left = run ? DURATION - (Date.now() - run.t0) / 1000 : DURATION;
-    $("timer").textContent = fmt(left);
+    var g = lv.goals;
+    var gain = run ? run.gain : 0;
+    $("gfill").style.width = Math.min(100, gain / g[2] * 100) + "%";
+    $("gtxt").textContent = gain;
+    for (var k = 0; k < 3; k++) {
+      var s = $("gs" + (k + 1));
+      s.style.left = (g[k] / g[2] * 100) + "%";
+      s.classList.toggle("on", gain >= g[k]);
+    }
+    $("left").textContent = run ? Math.max(0, lv.clients - run.done) : lv.clients;
+  }
+
+  /* ---------- Défis d'Auguste ---------- */
+  function parseCh(ch) {
+    var p = ch.split(":");
+    return { k: p[0], n: parseInt(p[1] || "0", 10) };
+  }
+  function chText(ch) {
+    var c = parseCh(ch);
+    if (c.k === "nolost") return "ne perds aucun client";
+    if (c.k === "noburn") return "ne brûle aucun plat";
+    if (c.k === "combo") return "fais un combo x" + c.n;
+    if (c.k === "perfect") return "sers " + c.n + " plats parfaits";
+    return "";
+  }
+  function chOk(ch, r) {
+    var c = parseCh(ch);
+    if (c.k === "nolost") return r.lost === 0;
+    if (c.k === "noburn") return r.burnt === 0;
+    if (c.k === "combo") return r.best >= c.n;
+    if (c.k === "perfect") return r.perfects >= c.n;
+    return false;
+  }
+
+  /* ---------- Améliorations ---------- */
+  function scale(b, f) {
+    var raw = b.raw * f;
+    var burn = raw + (b.burn - b.raw);
+    return { raw: raw, burn: burn, max: burn + (b.max - b.burn) };
+  }
+  function barBg(c) {
+    var a = (c.raw / c.max * 100).toFixed(1);
+    var b = (c.burn / c.max * 100).toFixed(1);
+    return "linear-gradient(to right,#e57373 0 " + a + "%,#F2C65D " + a + "% " + b + "%,#555 " + b + "% 100%)";
+  }
+  function applyUpgrades() {
+    cfgG = scale(GRILL, 1 - 0.12 * state.up.grill);
+    cfgF = scale(FRY, 1 - 0.12 * state.up.fry);
+    pf = 1 + 0.12 * state.up.patience;
+    pm = 1 + 0.10 * state.up.price;
+    for (var i = 0; i < 2; i++) {
+      $("gm" + i).parentNode.style.background = barBg(cfgG);
+      $("fm" + i).parentNode.style.background = barBg(cfgF);
+    }
+  }
+  function buy(id) {
+    var u = null;
+    for (var i = 0; i < UPGRADES.length; i++) if (UPGRADES[i].id === id) u = UPGRADES[i];
+    if (!u) return false;
+    var lvl = state.up[id] || 0;
+    if (lvl >= u.costs.length) return false;
+    var cost = u.costs[lvl];
+    if (state.coins < cost) return false;
+    state.coins -= cost;
+    state.up[id] = lvl + 1;
+    save();
+    refresh();
+    return true;
+  }
+  function nextLevel() {
+    for (var i = 0; i < LEVELS.length; i++) if (state.stars[i] < 1) return i;
+    return LEVELS.length - 1;
   }
 
   /* ---------- Clients ---------- */
@@ -164,17 +261,19 @@
   }
 
   function trySpawn() {
-    if (!run || run.spawned >= TOTAL) return;
+    if (!run || run.spawned >= lv.clients) return;
     var free = -1;
     for (var i = 0; i < SLOTS; i++) {
       if (!clients[i]) { free = i; break; }
     }
     if (free < 0) { later(trySpawn, 1500); return; }
-    var rushed = run.spawned > 0 && Math.random() < 0.35;
-    var order = run.spawned === 0 ? ORDERS[0] : ORDERS[Math.floor(Math.random() * ORDERS.length)];
+    var rushed = run.spawned > 0 && Math.random() < lv.rush;
+    var duo = run.spawned === 0 || Math.random() < lv.duo;
+    var order = duo ? ["brochette", "plantain"]
+      : (Math.random() < 0.5 ? ["brochette"] : ["plantain"]);
     clients[free] = {
       born: Date.now(),
-      patience: rushed ? 30000 : 45000,
+      patience: (rushed ? lv.pat * 0.7 : lv.pat) * pf,
       rushed: rushed,
       face: FACES[Math.floor(Math.random() * FACES.length)],
       order: order,
@@ -187,13 +286,14 @@
     } else if (rushed) {
       say("Attention, un client pressé ⏱ est arrivé : il a moins de patience !");
     }
-    if (run.spawned < TOTAL) later(trySpawn, 7000);
+    if (run.spawned < lv.clients) later(trySpawn, lv.spawn);
   }
 
   function finishClient(i) {
     run.done++;
+    updateHud();
     later(function () { clients[i] = null; renderClients(); }, 900);
-    if (run.done >= TOTAL) later(endService, 1300);
+    if (run.done >= lv.clients) later(endService, 1300);
   }
 
   function clientLeaves(i) {
@@ -293,15 +393,25 @@
   }
 
   function renderStations() {
-    paintStation(grills, GRILL, "gi", "gl", "gm",
+    paintStation(grills, cfgG, "gi", "gl", "gm",
       { empty: "♨️", raw: "🍗", perfect: "🍢", burnt: "⬛" }, "Brochette");
-    paintStation(fryers, FRY, "fi", "fl", "fm",
+    paintStation(fryers, cfgF, "fi", "fl", "fm",
       { empty: "🥘", raw: "🍌", perfect: "🍌", burnt: "⬛" }, "Plantain");
+  }
+
+  function burnScan(list, cfg) {
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      if (it && !it.b && stateOf(it, cfg) === "burnt") {
+        it.b = true;
+        run.burnt++;
+      }
+    }
   }
 
   function onGrill(i) {
     if (!run) return;
-    var s = stateOf(grills[i], GRILL);
+    var s = stateOf(grills[i], cfgG);
     if (s === "empty") {
       if (!board || board.stage !== "brochette") {
         say("Prépare d'abord une brochette : Poulet, Marinade, puis Embrocher.");
@@ -325,7 +435,7 @@
 
   function onFry(i) {
     if (!run) return;
-    var s = stateOf(fryers[i], FRY);
+    var s = stateOf(fryers[i], cfgF);
     if (s === "empty") {
       fryers[i] = { start: Date.now() };
       busy();
@@ -372,11 +482,11 @@
     var items = plate.length;
     var avg = sumq / items;
     var left = leftOf(c);
-    if (perfect) run.combo++; else run.combo = 0;
+    if (perfect) { run.combo++; run.perfects++; } else { run.combo = 0; }
     if (run.combo > run.best) run.best = run.combo;
     if (run.combo > state.bestCombo) state.bestCombo = run.combo;
     var bonus = perfect ? Math.min(run.combo - 1, 4) * 2 : 0;
-    var coins = Math.round(items * 5 + sumq * 4 + left * 5) + bonus;
+    var coins = Math.round((items * 5 + sumq * 4 + left * 5) * pm) + bonus;
     var points = Math.round(50 * sumq + 30 * left * items) + bonus * 10;
     state.coins += coins;
     state.score += points;
@@ -384,7 +494,6 @@
     save();
     refresh();
     run.served++;
-    run.coins += coins;
     run.gain += coins;
     run.q.push(avg);
     c.state = "done";
@@ -393,7 +502,6 @@
     renderPlate();
     renderClients();
     updateCombo();
-    updateHud();
     toast(bonus > 0 ? "COMBO x" + run.combo + "  +" + coins + " 🪙" : "+" + coins + " 🪙");
     say(perfect
       ? "Excellent ! Tout est parfait, +" + coins + " pièces."
@@ -409,15 +517,14 @@
       if (!run) return;
       checkPatience();
       paintBars();
-      updateHud();
-      if (run && DURATION - (Date.now() - run.t0) / 1000 <= 0) endService();
+      if (run) { burnScan(grills, cfgG); burnScan(fryers, cfgF); }
     }, 100);
   }
   function stopLoop() {
     if (loop) { clearInterval(loop); loop = null; }
   }
 
-  /* ---------- Début et fin de service ---------- */
+  /* ---------- Début et fin de niveau ---------- */
   function resetKitchen() {
     clients = [null, null, null];
     plate = [];
@@ -429,9 +536,10 @@
   function startService() {
     clearTimers();
     resetKitchen();
+    applyUpgrades();
     run = {
-      served: 0, lost: 0, done: 0, coins: 0, gain: 0, q: [],
-      spawned: 0, combo: 0, best: 0, t0: Date.now()
+      served: 0, lost: 0, done: 0, gain: 0, q: [],
+      spawned: 0, combo: 0, best: 0, perfects: 0, burnt: 0
     };
     $("overlay").classList.add("hidden");
     renderClients();
@@ -445,41 +553,55 @@
     later(trySpawn, 1500);
   }
 
+  function starsStr(n) { return n ? "⭐".repeat(n) : "Aucune étoile"; }
+
   function endService() {
     if (!run) return;
     clearTimers();
-    var sum = 0;
-    for (var i = 0; i < run.q.length; i++) sum += run.q[i];
-    var avg = run.q.length ? sum / run.q.length : 0;
-    var reached = run.gain >= GOAL;
-    var stars = 0;
-    if (reached && run.lost === 0 && run.served >= TOTAL && avg >= 0.9) stars = 3;
-    else if (reached) stars = 2;
-    else if (run.served >= 1) stars = 1;
-    if (stars === 3) state.threeStars = true;
-    save();
-    stopLoop();
-    var served = run.served;
+    var g = lv.goals;
     var gain = run.gain;
+    var stars = gain >= g[2] ? 3 : (gain >= g[1] ? 2 : (gain >= g[0] ? 1 : 0));
+    var ok = chOk(lv.ch, run);
+    var reward = 0;
+    var first = false;
+    if (stars > state.stars[cur]) state.stars[cur] = stars;
+    if (stars === 3) state.threeStars = true;
+    if (ok && stars >= 1 && !state.chDone[cur]) {
+      state.chDone[cur] = true;
+      state.coins += CH_REWARD;
+      reward = CH_REWARD;
+      first = true;
+    }
+    save();
+    refresh();
+    stopLoop();
     var best = run.best;
     run = null;
     updateCombo();
     updateHud();
+    after = (stars >= 1 && cur + 1 < LEVELS.length) ? "next" : "retry";
+    phase = "end";
+    var chLine = ok
+      ? "Défi d'Auguste : réussi ✅" + (first ? " (+" + reward + " 🪙)" : "")
+      : "Défi d'Auguste : raté ❌ (" + chText(lv.ch) + ")";
     overlay(
-      reached ? "Objectif atteint !" : "Service terminé",
-      "Clients servis : " + served + "/" + TOTAL + "\n" +
-      "Pièces gagnées : " + gain + " / " + GOAL + " 🪙\n" +
-      "Meilleur combo : " + best + "\n" +
-      (stars ? "⭐".repeat(stars) : "Pas d'étoile cette fois"),
-      "Rejouer"
+      stars ? "Niveau 1-" + (cur + 1) + " réussi !" : "Niveau raté",
+      "Pièces gagnées : " + gain + " / " + g[2] + " 🪙\n" +
+      starsStr(stars) + "\n" +
+      (stars ? "" : "Il fallait au moins " + g[0] + " 🪙\n") +
+      "Meilleur combo : " + best + "\n" + chLine,
+      after === "next" ? "Niveau suivant" : "Rejouer"
     );
   }
 
-  function openGame() {
+  function openGame(idx) {
     clearTimers();
     stopLoop();
     run = null;
+    cur = idx;
+    lv = LEVELS[idx];
     resetKitchen();
+    applyUpgrades();
     $("screen-game").classList.toggle("no-tips", !state.tips);
     refresh();
     renderClients();
@@ -489,58 +611,20 @@
     updateCombo();
     updateHud();
     say("Bienvenue au Petit Gourmet !");
+    phase = "intro";
+    var g = lv.goals;
     overlay(
-      "Le Petit Gourmet",
-      "Sers 6 clients en 2 min 30. Objectif : " + GOAL + " pièces.\n" +
-      "Brochette : poulet, marinade, embrocher, puis gril.\n" +
-      "Plantains : touche la friteuse.\n" +
-      "Assiette prête : touche le client.",
+      "Niveau 1-" + (idx + 1),
+      "Objectif en pièces :\n⭐ " + g[0] + "   ⭐⭐ " + g[1] + "   ⭐⭐⭐ " + g[2] + "\n" +
+      "Clients à servir : " + lv.clients + "\n" +
+      "Défi d'Auguste (+" + CH_REWARD + " 🪙) : " + chText(lv.ch),
       "Commencer"
     );
     show("screen-game");
   }
 
-  function goMenu() {
+  function goHome() {
     clearTimers();
     stopLoop();
     run = null;
-    window.MC.showHome();
-  }
-
-  /* ---------- Branchements ---------- */
-  $("btn-play").addEventListener("click", openGame);
-  $("btn-back").addEventListener("click", goMenu);
-  $("ov-btn").addEventListener("click", startService);
-  $("ov-menu").addEventListener("click", goMenu);
-  $("btn-trash").addEventListener("click", trash);
-
-  $("salle").addEventListener("click", function (e) {
-    var el = e.target.closest(".cslot");
-    if (!el) return;
-    serveSlot(parseInt(el.getAttribute("data-slot"), 10));
-  });
-
-  function bindAll(selector, attr, fn) {
-    var list = document.querySelectorAll(selector);
-    for (var n = 0; n < list.length; n++) {
-      (function (b) {
-        b.addEventListener("click", function () { fn(b.getAttribute(attr)); });
-      })(list[n]);
-    }
-  }
-  bindAll("[data-prep]", "data-prep", onPrep);
-  bindAll("[data-grill]", "data-grill", function (v) { onGrill(parseInt(v, 10)); });
-  bindAll("[data-fry]", "data-fry", function (v) { onFry(parseInt(v, 10)); });
-
-  /* Partage avec le menu (menu.js) */
-  window.MC = {
-    state: state,
-    defaults: DEFAULTS,
-    save: save,
-    refresh: refresh,
-    show: show,
-    showHome: function () { show("screen-home"); }
-  };
-
-  refresh();
-})();
+    windo

@@ -27,6 +27,7 @@
   var FRY = { raw: 2000, burn: 4500, max: 6000 };
   var SLOTS = 3;
   var CH_REWARD = 25;
+  var MIN_COOK = 800;
   var ICON = { brochette: "🍢", plantain: "🍌" };
   var LABEL = { brochette: "les brochettes", plantain: "les plantains" };
   var FACES = ["👩", "👨", "🧑", "👵", "👴", "🧒"];
@@ -48,8 +49,35 @@
   var board = null;
   var grills = [null, null];
   var fryers = [null, null];
-  var timers = [];
+  var queue = [];
   var loop = null;
+
+  /* ---------- Horloge du jeu (gelée pendant la pause) ---------- */
+  var paused = false;
+  var pauseAt = 0;
+  var pausedTotal = 0;
+
+  function now() { return Date.now() - pausedTotal; }
+
+  function resetPause() {
+    if (paused) {
+      pausedTotal += Date.now() - pauseAt;
+      paused = false;
+    }
+  }
+
+  function later(fn, ms) { queue.push({ at: now() + ms, fn: fn }); }
+  function clearTimers() { queue = []; }
+  function runQueue() {
+    var t = now();
+    var due = [];
+    var rest = [];
+    for (var i = 0; i < queue.length; i++) {
+      if (queue[i].at <= t) due.push(queue[i]); else rest.push(queue[i]);
+    }
+    queue = rest;
+    for (var j = 0; j < due.length; j++) due[j].fn();
+  }
 
   /* ---------- Sauvegarde ---------- */
   function makeDefaults() {
@@ -81,16 +109,29 @@
 
   /* ---------- Outils ---------- */
   function $(id) { return document.getElementById(id); }
-  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
-  function clearTimers() {
-    for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
-    timers = [];
+
+  function curScreen() {
+    var s = document.querySelectorAll(".screen");
+    for (var i = 0; i < s.length; i++) {
+      if (!s[i].classList.contains("hidden")) return s[i].id;
+    }
+    return "";
   }
+
   function show(id) {
     var screens = document.querySelectorAll(".screen");
     for (var i = 0; i < screens.length; i++) screens[i].classList.add("hidden");
     $(id).classList.remove("hidden");
+    var marked = !!(history.state && history.state.mc);
+    try {
+      if (id === "screen-home") {
+        if (marked) history.back();
+      } else if (!marked) {
+        history.pushState({ mc: 1 }, "");
+      }
+    } catch (e) {}
   }
+
   function say(text) { $("hint").innerHTML = "<b>Auguste :</b> " + text; }
   function refresh() {
     state.level = 1 + Math.floor(state.score / 500);
@@ -109,10 +150,11 @@
     void t.offsetWidth;
     t.classList.add("show");
   }
-  function overlay(title, text, btn) {
+  function overlay(title, text, btn, menuLabel) {
     $("ov-title").textContent = title;
     $("ov-text").textContent = text;
     $("ov-btn").textContent = btn;
+    $("ov-menu").textContent = menuLabel || "Niveaux";
     $("overlay").classList.remove("hidden");
   }
   function updateCombo() {
@@ -201,7 +243,7 @@
 
   /* ---------- Clients ---------- */
   function leftOf(c) {
-    return Math.max(0, 1 - (Date.now() - c.born) / c.patience);
+    return Math.max(0, 1 - (now() - c.born) / c.patience);
   }
 
   function renderClients() {
@@ -272,7 +314,7 @@
     var order = duo ? ["brochette", "plantain"]
       : (Math.random() < 0.5 ? ["brochette"] : ["plantain"]);
     clients[free] = {
-      born: Date.now(),
+      born: now(),
       patience: (rushed ? lv.pat * 0.7 : lv.pat) * pf,
       rushed: rushed,
       face: FACES[Math.floor(Math.random() * FACES.length)],
@@ -370,7 +412,7 @@
   /* ---------- Gril et friteuse ---------- */
   function stateOf(item, cfg) {
     if (!item) return "empty";
-    var t = Date.now() - item.start;
+    var t = now() - item.start;
     if (t < cfg.raw) return "raw";
     if (t < cfg.burn) return "perfect";
     return "burnt";
@@ -383,7 +425,7 @@
       $(lp + i).textContent = s === "empty" ? emptyLabel : (s === "burnt" ? "Jeter" : "Retirer");
       var m = $(mp + i);
       if (list[i]) {
-        var pct = Math.min(100, (Date.now() - list[i].start) / cfg.max * 100);
+        var pct = Math.min(100, (now() - list[i].start) / cfg.max * 100);
         m.style.display = "block";
         m.style.left = "calc(" + pct + "% - 2px)";
       } else {
@@ -417,7 +459,7 @@
         say("Prépare d'abord une brochette : Poulet, Marinade, puis Embrocher.");
         return;
       }
-      grills[i] = { start: Date.now() };
+      grills[i] = { start: now() };
       board = null;
       renderBoard();
       busy();
@@ -426,6 +468,7 @@
       grills[i] = null;
       say("Brûlée ! Je la jette. Il faudra en refaire une.");
     } else {
+      if (now() - grills[i].start < MIN_COOK) { say("Laisse-la cuire un peu !"); return; }
       if (!addToPlate("brochette", s === "perfect" ? 1 : 0.4)) return;
       grills[i] = null;
       say(s === "perfect" ? "Cuisson parfaite !" : "Un peu cru… mais ça passe.");
@@ -437,13 +480,14 @@
     if (!run) return;
     var s = stateOf(fryers[i], cfgF);
     if (s === "empty") {
-      fryers[i] = { start: Date.now() };
+      fryers[i] = { start: now() };
       busy();
       say("Le plantain frit. Retire-le quand la barre est dorée : ça va vite !");
     } else if (s === "burnt") {
       fryers[i] = null;
       say("Brûlé ! Je le jette.");
     } else {
+      if (now() - fryers[i].start < MIN_COOK) { say("Laisse-le cuire un peu !"); return; }
       if (!addToPlate("plantain", s === "perfect" ? 1 : 0.4)) return;
       fryers[i] = null;
       say(s === "perfect" ? "Plantain doré, parfait !" : "Encore un peu pâle… mais ça passe.");
@@ -513,6 +557,8 @@
   function startLoop() {
     stopLoop();
     loop = setInterval(function () {
+      if (paused) return;
+      runQueue();
       renderStations();
       if (!run) return;
       checkPatience();
@@ -522,6 +568,21 @@
   }
   function stopLoop() {
     if (loop) { clearInterval(loop); loop = null; }
+  }
+
+  /* ---------- Pause ---------- */
+  function pauseGame() {
+    if (!run || paused) return;
+    paused = true;
+    pauseAt = Date.now();
+    phase = "pause";
+    overlay("Pause", "Ton service est en attente.", "Reprendre", "Quitter");
+  }
+  function resumeGame() {
+    if (!paused) return;
+    resetPause();
+    phase = "play";
+    $("overlay").classList.add("hidden");
   }
 
   /* ---------- Début et fin de niveau ---------- */
@@ -534,6 +595,7 @@
   }
 
   function startService() {
+    resetPause();
     clearTimers();
     resetKitchen();
     applyUpgrades();
@@ -541,6 +603,7 @@
       served: 0, lost: 0, done: 0, gain: 0, q: [],
       spawned: 0, combo: 0, best: 0, perfects: 0, burnt: 0
     };
+    phase = "play";
     $("overlay").classList.add("hidden");
     renderClients();
     renderPlate();
@@ -595,6 +658,7 @@
   }
 
   function openGame(idx) {
+    resetPause();
     clearTimers();
     stopLoop();
     run = null;
@@ -623,24 +687,31 @@
     show("screen-game");
   }
 
-  function goHome() {
+  function leaveGame() {
+    resetPause();
     clearTimers();
     stopLoop();
     run = null;
+    phase = "intro";
+  }
+
+  function goHome() {
+    leaveGame();
     window.MC.showHome();
   }
 
   function goLevels() {
-    clearTimers();
-    stopLoop();
-    run = null;
+    leaveGame();
     window.MC.openLevels();
   }
 
   /* ---------- Branchements ---------- */
-  $("btn-back").addEventListener("click", goHome);
+  $("btn-back").addEventListener("click", function () {
+    if (run) pauseGame(); else goLevels();
+  });
   $("ov-btn").addEventListener("click", function () {
     if (phase === "intro") startService();
+    else if (phase === "pause") resumeGame();
     else openGame(after === "next" ? cur + 1 : cur);
   });
   $("ov-menu").addEventListener("click", goLevels);
@@ -663,6 +734,20 @@
   bindAll("[data-prep]", "data-prep", onPrep);
   bindAll("[data-grill]", "data-grill", function (v) { onGrill(parseInt(v, 10)); });
   bindAll("[data-fry]", "data-fry", function (v) { onFry(parseInt(v, 10)); });
+
+  /* Bouton Retour d'Android */
+  window.addEventListener("popstate", function () {
+    var scr = curScreen();
+    if (!scr || scr === "screen-home") return;
+    if (scr === "screen-game") {
+      if (run && !paused) pauseGame();
+      else if (paused) resumeGame();
+      else { goLevels(); return; }
+      try { history.pushState({ mc: 1 }, ""); } catch (e) {}
+      return;
+    }
+    window.MC.showHome();
+  });
 
   /* Partage avec le menu (menu.js) */
   window.MC = {
